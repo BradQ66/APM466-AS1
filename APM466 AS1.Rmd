@@ -1,0 +1,178 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+title: "Untitled"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("jrvFinance")
+install.packages("ggplot2")
+
+library(jrvFinance)
+library(ggplot2)
+
+```
+
+```{r}
+Bond_price <- read.csv("APM466 AS1.csv")
+```
+
+```{r}
+##Q4-a##
+settle_date<-as.Date(c("2023/1/16","2023/1/17","2023/1/18","2023/1/19","2023/1/20","2023/1/23","2023/1/24","2023/1/25","2023/1/26","2023/1/27"))
+maturity_date<-as.Date(c("2023/6/1","2023/11/1","2024/6/1","2024/11/1","2025/6/1","2025/10/1","2026/6/1","2026/9/1","2027/6/1","2027/9/1"))
+Bond_price$coupon<-as.numeric(Bond_price$coupon)
+price_only<-Bond_price[,c(5:14)]
+YTM <-matrix(nrow=10,ncol=10)
+for(i in 1:10){
+  for(j in 1:10){
+    YTM[i,j] <-bond.yield(settle=settle_date[j],
+      mature=maturity_date[i],
+      coupon=Bond_price$coupon[1],
+      freq=2,
+      price=price_only[i,j],
+      convention = c("30/360", "ACT/ACT", "ACT/360", "30/360E"),
+      comp.freq = 2,
+      redemption_value = 100
+      )
+  }
+}  
+YTM<-as.data.frame(YTM)
+
+Maturity_Year<-c(0.5,1,1.5,2,2.5,3,3.5,4,4.5,5)
+ggplot(data=YTM,aes(x=Maturity_Year)) +
+  geom_line(aes(y=V1,color="2023/1/16"))+
+  geom_line(aes(y=V2,color="2023/1/17"))+
+  geom_line(aes(y=V3,color="2023/1/18"))+
+  geom_line(aes(y=V4,color="2023/1/19"))+
+  geom_line(aes(y=V5,color="2023/1/20"))+
+  geom_line(aes(y=V6,color="2023/1/23"))+
+  geom_line(aes(y=V7,color="2023/1/24"))+
+  geom_line(aes(y=V8,color="2023/1/25"))+
+  geom_line(aes(y=V9,color="2023/1/26"))+
+  geom_line(aes(y=V10,color="2023/1/27"))+
+  ggtitle("5 Year Yield Curve")+
+  scale_colour_manual("Date",values = c("2023/1/16"="Red1", "2023/1/17"="#f18800", "2023/1/18"="Purple","2023/1/19"="#9ec417","2023/1/20"="#13a983","2023/1/23"="dodgerblue","2023/1/24"="darkorchid3","2023/1/25"="Black","2023/1/26"="003333","2023/1/27"="666666"))+
+  labs(x="Maturity Year",y="YTM")
+```
+
+```{r}
+##Q4-b
+Spot_rate <- matrix(nrow=10,ncol=10)
+Time_to_maturity<-c(5/12,10/12,17/12,22/12,29/12,33/12,41/12,44/12,53/12,56/12)
+Time_to_maturity<-as.numeric(Time_to_maturity)
+coupn_payment_times<-c(0,0,1,2,3,4,5,6,7,8)
+coupn_payment_times<as.numeric(coupn_payment_times)
+
+
+##1st bond maturing in 5 months
+for(j in 1:10){
+    Spot_rate[1,j]<-YTM[1,j]
+}
+
+#Other bonds
+for (j in 1:10){
+  for(i in 2:10){
+    sum <- 0
+    for (k in 1:(i-1)){
+      sum <- sum + Bond_price$coupon[i]*100 * exp(-Spot_rate[k,j]*(0.5*k))
+    }
+    Spot_rate[i,j] <- -log((price_only[i,j]-sum)/(Bond_price$coupon[i]*100  + 100))/(0.5*k)
+  }
+}
+
+Spot_rate<-as.data.frame(Spot_rate)
+Maturity_Year<-c(0.5,1,1.5,2,2.5,3,3.5,4,4.5,5)
+ggplot(data=Spot_rate,aes(x=Maturity_Year)) +
+  geom_line(aes(y=V1,color="2023/1/16"))+
+  geom_line(aes(y=V2,color="2023/1/17"))+
+  geom_line(aes(y=V3,color="2023/1/18"))+
+  geom_line(aes(y=V4,color="2023/1/19"))+
+  geom_line(aes(y=V5,color="2023/1/20"))+
+  geom_line(aes(y=V6,color="2023/1/23"))+
+  geom_line(aes(y=V7,color="2023/1/24"))+
+  geom_line(aes(y=V8,color="2023/1/25"))+
+  geom_line(aes(y=V9,color="2023/1/26"))+
+  geom_line(aes(y=V10,color="2023/1/27"))+
+  ggtitle("5 Year Spot Curve")+
+  scale_colour_manual("Date",values = c("2023/1/16"="Red1", "2023/1/17"="#f18800", "2023/1/18"="Purple","2023/1/19"="#9ec417","2023/1/20"="#13a983","2023/1/23"="dodgerblue","2023/1/24"="darkorchid3","2023/1/25"="Black","2023/1/26"="003333","2023/1/27"="666666"))+
+  labs(x="Maturity Year",y="Spot Rate")
+
+```
+
+```{r}
+##Q4-c
+# Calculate forward rate
+Forward <-matrix(nrow=4,ncol=10)
+for (i in 1:4){
+  for (j in 1:10){
+  Forward[i,j] <- ((Spot_rate[i+1,j] * (i+1) - Spot_rate[1,j]) / i)
+  }
+}
+Forward<-as.data.frame(Forward)
+Year<-c(1,2,3,4)
+ggplot(data=Forward,aes(x=Year)) +
+  geom_line(aes(y=V1,color="2023/1/16"))+
+  geom_line(aes(y=V2,color="2023/1/17"))+
+  geom_line(aes(y=V3,color="2023/1/18"))+
+  geom_line(aes(y=V4,color="2023/1/19"))+
+  geom_line(aes(y=V5,color="2023/1/20"))+
+  geom_line(aes(y=V6,color="2023/1/23"))+
+  geom_line(aes(y=V7,color="2023/1/24"))+
+  geom_line(aes(y=V8,color="2023/1/25"))+
+  geom_line(aes(y=V9,color="2023/1/26"))+
+  geom_line(aes(y=V10,color="2023/1/27"))+
+  ggtitle("5 Year Forward Curve")+
+  scale_colour_manual("Date",values = c("2023/1/16"="Red1", "2023/1/17"="#f18800", "2023/1/18"="Purple","2023/1/19"="#9ec417","2023/1/20"="#13a983","2023/1/23"="dodgerblue","2023/1/24"="darkorchid3","2023/1/25"="Black","2023/1/26"="003333","2023/1/27"="666666"))+
+  labs(x="Year",y="Forward Rate")
+
+
+
+```
+```{r}
+
+
+```
+
+```{r}
+##Q5
+yield<-matrix(nrow=5,ncol=9)
+for (j in 1:9){
+    yield[1,j] = log(YTM[2,j+1]/YTM[2,j])
+    yield[2,j] = log(YTM[4,j+1]/YTM[3,j])
+    yield[3,j] = log(YTM[6,j+1]/YTM[6,j])
+    yield[4,j] = log(YTM[8,j+1]/YTM[8,j])
+    yield[5,j] = log(YTM[10,j+1]/YTM[10,j])}
+yield2<-t(yield)
+cov_yield<-cov(yield2)
+cov_yield
+
+varforward<-matrix(nrow=4,ncol=9)
+for (j in 1:9){
+    varforward[1,j] = log(Forward[1,j+1]/Forward[1,j])
+    varforward[2,j] = log(Forward[2,j+1]/Forward[2,j])
+    varforward[3,j] = log(Forward[3,j+1]/Forward[3,j])
+    varforward[4,j] = log(Forward[4,j+1]/Forward[4,j])}
+   
+varforward2<-t(varforward)
+cov_for<-cov(varforward2)
+cov_for
+
+```
+
+```{r}
+##Q6
+eigen1<-eigen(cov_yield)
+eigen2<-eigen(cov_for)
+eigen1
+eigen2
+```
